@@ -34,10 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = authorization.substring(7);
 
             try {
-                String email = jwtService.extrairEmail(token);
+                String username = jwtService.extrairUsername(token);
 
                 var autenticacao = new UsernamePasswordAuthenticationToken(
-                        email,
+                        username,
                         null,
                         Collections.emptyList());
 
@@ -45,7 +45,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .setAuthentication(autenticacao);
 
             } catch (JwtException | IllegalArgumentException ex) {
-                System.out.println("ERRO AO VALIDAR JWT: " + ex.getMessage());
                 SecurityContextHolder.clearContext();
             }
         }

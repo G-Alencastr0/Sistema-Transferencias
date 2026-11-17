@@ -11,8 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@RestController // informa ao Spring que essa classe receberá requisições HTTP e devolverá
-                // respostas, geralmente em JSON
+@RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
@@ -24,9 +23,8 @@ public class AuthController {
             @Valid @RequestBody CadastroRequest request) {
 
         UsuarioResponse resposta = usuarioService.cadastrar(
-                request.getNome(),
-                request.getEmail(),
-                request.getSenha());
+                request.getUsername(),
+                request.getPassword());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(resposta);
     }
@@ -36,10 +34,9 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request) {
 
         LoginResponse resposta = usuarioService.login(
-                request.getEmail(),
-                request.getSenha());
+                request.getUsername(),
+                request.getPassword());
 
         return ResponseEntity.ok(resposta);
     }
-
 }

@@ -1,5 +1,6 @@
 package com.projeto.transferencias.repository;
 
+import java.math.BigDecimal;
 import com.projeto.transferencias.entity.Conta;
 import com.projeto.transferencias.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,5 +23,8 @@ public interface ContaRepository extends JpaRepository<Conta, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Conta c WHERE c.id = :id")
     Optional<Conta> buscarPorIdComBloqueio(@Param("id") Long id);
+
+    @Query("SELECT COALESCE(SUM(c.saldo), 0) FROM Conta c")
+    BigDecimal somarSaldos();
 
 }

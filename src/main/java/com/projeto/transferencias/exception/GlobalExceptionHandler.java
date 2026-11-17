@@ -11,26 +11,41 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> tratarErroDeRegra(
-            IllegalArgumentException ex) {
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ResponseEntity<Map<String, String>> tratarErroDeRegra(
+                        IllegalArgumentException ex) {
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("erro", ex.getMessage()));
-    }
+                String codigo = ex.getMessage();
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> tratarErroDeValidacao(
-            MethodArgumentNotValidException ex) {
+                HttpStatus status = switch (codigo) {
+                        case "VALOR_INVALIDO", "MESMA_CONTA" ->
+                                HttpStatus.UNPROCESSABLE_ENTITY;
 
-        String mensagem = ex.getBindingResult()
-                .getFieldErrors()
-                .get(0)
-                .getDefaultMessage();
+                        case "DESTINO_INEXISTENTE" ->
+                                HttpStatus.NOT_FOUND;
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("erro", mensagem));
-    }
+                        case "TRANSFERENCIA_DUPLICADA", "SALDO_INSUFICIENTE",
+                                        "USUARIO_EXISTENTE" ->
+                                HttpStatus.CONFLICT;
+
+                        case "CREDENCIAIS_INVALIDAS" ->
+                                HttpStatus.UNAUTHORIZED;
+
+                        default ->
+                                HttpStatus.BAD_REQUEST;
+                };
+
+                return ResponseEntity
+                                .status(status)
+                                .body(Map.of("error", codigo));
+        }
+
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<Map<String, String>> tratarErroDeValidacao(
+                        MethodArgumentNotValidException ex) {
+
+                return ResponseEntity
+                                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                                .body(Map.of("error", "VALOR_INVALIDO"));
+        }
 }

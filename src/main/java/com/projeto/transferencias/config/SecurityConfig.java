@@ -1,6 +1,8 @@
 package com.projeto.transferencias.config;
 
 import com.projeto.transferencias.service.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,10 +26,18 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json");
+                                                        response.getWriter().write("{\"error\":\"NAO_AUTENTICADO\"}");
+                                                }))
+
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
                                                                 "/auth/registrar",
                                                                 "/auth/login",
+                                                                "/auditoria",
                                                                 "/error")
                                                 .permitAll()
 

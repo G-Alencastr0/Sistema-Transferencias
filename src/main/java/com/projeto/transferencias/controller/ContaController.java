@@ -15,27 +15,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ContaController {
 
-    private final ContaRepository contaRepository;
-    private final UsuarioRepository usuarioRepository;
+        private final ContaRepository contaRepository;
+        private final UsuarioRepository usuarioRepository;
 
-    @GetMapping
-    public ResponseEntity<ContaResponse> consultarConta(Authentication authentication) {
+        @GetMapping
+        public ResponseEntity<ContaResponse> consultarConta(Authentication authentication) {
 
-        String email = authentication.getName();
+                String username = authentication.getName();
 
-        var usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+                var usuario = usuarioRepository.findByUsername(username)
+                                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        var conta = contaRepository.findByUsuario(usuario)
-                .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada."));
+                var conta = contaRepository.findByUsuario(usuario)
+                                .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada."));
 
-        ContaResponse resposta = new ContaResponse(
-                conta.getId(),
-                usuario.getNome(),
-                usuario.getEmail(),
-                conta.getSaldo());
+                ContaResponse resposta = new ContaResponse(
+                                usuario.getUsername(),
+                                conta.getSaldo().intValueExact());
 
-        return ResponseEntity.ok(resposta);
-    }
-
+                return ResponseEntity.ok(resposta);
+        }
 }

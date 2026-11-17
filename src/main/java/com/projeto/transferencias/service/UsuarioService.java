@@ -23,48 +23,38 @@ public class UsuarioService {
     private final JwtService jwtService;
 
     @Transactional
-    public UsuarioResponse cadastrar(String nome, String email, String senha) {
+    public UsuarioResponse cadastrar(String username, String password) {
 
-        if (usuarioRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("E-mail já cadastrado.");
+        if (usuarioRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("USUARIO_EXISTENTE");
         }
 
         Usuario usuario = new Usuario();
-        usuario.setNome(nome);
-        usuario.setEmail(email);
-        usuario.setSenha(passwordEncoder.encode(senha));
+        usuario.setUsername(username);
+        usuario.setPassword(passwordEncoder.encode(password));
 
         usuario = usuarioRepository.save(usuario);
 
         Conta conta = new Conta();
         conta.setUsuario(usuario);
-        conta.setSaldo(new BigDecimal("1000.00"));
+        conta.setSaldo(new BigDecimal("1000"));
 
         contaRepository.save(conta);
 
-        return new UsuarioResponse(
-                usuario.getId(),
-                usuario.getNome(),
-                usuario.getEmail());
-
+        return new UsuarioResponse(usuario.getUsername());
     }
 
-    public LoginResponse login(String email, String senha) {
+    public LoginResponse login(String username, String password) {
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("E-mail ou senha inválidos."));
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("CREDENCIAIS_INVALIDAS"));
 
-        if (!passwordEncoder.matches(senha, usuario.getSenha())) {
-            throw new IllegalArgumentException("E-mail ou senha inválidos.");
+        if (!passwordEncoder.matches(password, usuario.getPassword())) {
+            throw new IllegalArgumentException("CREDENCIAIS_INVALIDAS");
         }
 
-        String token = jwtService.gerarToken(usuario.getEmail());
+        String token = jwtService.gerarToken(usuario.getUsername());
 
-        return new LoginResponse(
-                token,
-                usuario.getId(),
-                usuario.getNome(),
-                usuario.getEmail());
+        return new LoginResponse(token);
     }
-
 }

@@ -1,8 +1,7 @@
+
 package com.projeto.transferencias.service;
 
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Isolation;
-
+import com.projeto.transferencias.dto.TransferenciaResponse;
 import com.projeto.transferencias.entity.Transferencia;
 import com.projeto.transferencias.repository.ContaRepository;
 import com.projeto.transferencias.repository.UsuarioRepository;
@@ -14,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -24,28 +25,38 @@ public class TransferenciaService {
         private final TransferenciaRepository transferenciaRepository;
 
         @Transactional(isolation = Isolation.READ_COMMITTED)
-        public void transferir(String emailRemetente, Long destinatarioId, BigDecimal valor) {
+        public TransferenciaResponse transferir(
+                        String usernameRemetente,
+                        String usernameDestinatario,
+                        Integer valor) {
 
-                var remetente = usuarioRepository.findByEmail(emailRemetente)
+                if (valor == null || valor <= 0) {
+                        throw new IllegalArgumentException("VALOR_INVALIDO");
+                }
+
+                var remetente = usuarioRepository.findByUsername(usernameRemetente)
                                 .orElseThrow(() -> new IllegalArgumentException("Remetente não encontrado."));
+
+                var destinatario = usuarioRepository.findByUsername(usernameDestinatario)
+                                .orElseThrow(() -> new IllegalArgumentException("DESTINO_INEXISTENTE"));
 
                 Long idRemetente = contaRepository.buscarIdPorUsuarioId(remetente.getId())
                                 .orElseThrow(() -> new IllegalArgumentException("Conta do remetente não encontrada."));
 
-                if (destinatarioId == null) {
-                        throw new IllegalArgumentException("O destinatário é obrigatório.");
+                Long idDestinatario = contaRepository.buscarIdPorUsuarioId(destinatario.getId())
+                                .orElseThrow(() -> new IllegalArgumentException("DESTINO_INEXISTENTE"));
+
+                if (idRemetente.equals(idDestinatario)) {
+                        throw new IllegalArgumentException("MESMA_CONTA");
                 }
 
-                if (idRemetente.equals(destinatarioId)) {
-                        throw new IllegalArgumentException("Não é permitido transferir moedas para a própria conta.");
-                }
-
-                Long primeiroId = idRemetente.compareTo(destinatarioId) < 0
+                // Bloqueia as contas sempre na mesma ordem para evitar deadlocks.
+                Long primeiroId = idRemetente.compareTo(idDestinatario) < 0
                                 ? idRemetente
-                                : destinatarioId;
+                                : idDestinatario;
 
-                Long segundoId = idRemetente.compareTo(destinatarioId) < 0
-                                ? destinatarioId
+                Long segundoId = idRemetente.compareTo(idDestinatario) < 0
+                                ? idDestinatario
                                 : idRemetente;
 
                 var primeiraConta = contaRepository.buscarPorIdComBloqueio(primeiroId)
@@ -58,47 +69,50 @@ public class TransferenciaService {
                                 ? primeiraConta
                                 : segundaConta;
 
-                var contaDestinatario = destinatarioId.equals(primeiroId)
+                var contaDestinatario = idDestinatario.equals(primeiroId)
                                 ? primeiraConta
                                 : segundaConta;
 
-                if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
-                        throw new IllegalArgumentException("O valor da transferência deve ser maior que zero.");
-                }
-
-                if (contaRemetente.getSaldo().compareTo(valor) < 0) {
-                        throw new IllegalArgumentException("Saldo insuficiente para realizar a transferência.");
-                }
+                BigDecimal valorTransferencia = BigDecimal.valueOf(valor);
 
                 LocalDateTime agora = LocalDateTime.now();
 
+                // A duplicidade deve ser verificada antes do saldo.
                 boolean transferenciaDuplicada = transferenciaRepository
                                 .existsByRemetenteAndDestinatarioAndValorAndDataHoraAfter(
                                                 contaRemetente,
                                                 contaDestinatario,
-                                                valor,
+                                                valorTransferencia,
                                                 agora.minusSeconds(60));
 
                 if (transferenciaDuplicada) {
-                        throw new IllegalArgumentException(
-                                        "Transferência duplicada. Aguarde 60 segundos para repetir a operação.");
+                        throw new IllegalArgumentException("TRANSFERENCIA_DUPLICADA");
                 }
 
-                // Desconta o valor da conta do remetente
-                contaRemetente.setSaldo(
-                                contaRemetente.getSaldo().subtract(valor));
+                if (contaRemetente.getSaldo().compareTo(valorTransferencia) < 0) {
+                        throw new IllegalArgumentException("SALDO_INSUFICIENTE");
+                }
 
-                // Adiciona o valor à conta do destinatário
+                // Débito e crédito dentro da mesma transação.
+                contaRemetente.setSaldo(
+                                contaRemetente.getSaldo().subtract(valorTransferencia));
+
                 contaDestinatario.setSaldo(
-                                contaDestinatario.getSaldo().add(valor));
+                                contaDestinatario.getSaldo().add(valorTransferencia));
 
                 Transferencia transferencia = new Transferencia();
-
                 transferencia.setRemetente(contaRemetente);
                 transferencia.setDestinatario(contaDestinatario);
-                transferencia.setValor(valor);
+                transferencia.setValor(valorTransferencia);
                 transferencia.setDataHora(agora);
 
-                transferenciaRepository.save(transferencia);
+                transferencia = transferenciaRepository.save(transferencia);
+
+                return new TransferenciaResponse(
+                                transferencia.getId(),
+                                remetente.getUsername(),
+                                destinatario.getUsername(),
+                                valor,
+                                contaRemetente.getSaldo().intValueExact());
         }
 }

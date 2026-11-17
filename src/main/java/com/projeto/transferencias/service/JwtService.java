@@ -24,7 +24,7 @@ public class JwtService {
                 secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String gerarToken(String email) {
+    public String gerarToken(String username) {
 
         Date agora = new Date();
 
@@ -32,14 +32,14 @@ public class JwtService {
                 agora.getTime() + expiration);
 
         return Jwts.builder()
-                .subject(email)
+                .subject(username)
                 .issuedAt(agora)
                 .expiration(expiracao)
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    public String extrairEmail(String token) {
+    public String extrairUsername(String token) {
 
         return Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -49,16 +49,15 @@ public class JwtService {
                 .getSubject();
     }
 
-    public boolean validarToken(String token, String email) {
+    public boolean validarToken(String token, String username) {
 
         try {
-            String emailDoToken = extrairEmail(token);
+            String usernameDoToken = extrairUsername(token);
 
-            return emailDoToken.equals(email);
+            return usernameDoToken.equals(username);
 
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }
     }
-
 }
